@@ -407,7 +407,7 @@ import { isAdminLoggedIn } from '../utils/http'
 import { getTrafficUsageBytes } from '../composables/useServerCardData'
 import { getPublicAssetUrl } from '../utils/config.js'
 import Chart from 'chart.js/auto'
-import { t, currentLang, useTranslation } from '../utils/i18n'
+import { t, useTranslation } from '../utils/i18n'
 import { CHART, HISTORY } from '../utils/constants'
 import { formatDateTime, normalizeTimestamp as normalizeMetricTimestamp } from '../utils/time.js'
 import useTheme from '../composables/useTheme'
@@ -455,9 +455,7 @@ const ChartExpandButton = {
   },
   emits: ['toggle'],
   setup(props, { emit }) {
-    const getLabel = () => props.expanded
-      ? (currentLang.value === 'en' ? 'Collapse chart' : '收起图表')
-      : (currentLang.value === 'en' ? 'Expand chart' : '放大图表')
+    const getLabel = () => props.expanded ? trans.value.collapseChart : trans.value.expandChart
 
     return () => h('button', {
       type: 'button',
@@ -493,16 +491,16 @@ const ChartExpandButton = {
 }
 
 const PING_FIELD_DEFS = [
-  { field: 'ping_ct', lossField: 'loss_ct', labelKey: 'pingCt', className: 'ping-ct', datasetIndex: 0 },
-  { field: 'ping_cu', lossField: 'loss_cu', labelKey: 'pingCu', className: 'ping-cu', datasetIndex: 1 },
-  { field: 'ping_cm', lossField: 'loss_cm', labelKey: 'pingCm', className: 'ping-cm', datasetIndex: 2 },
-  { field: 'ping_bd', lossField: 'loss_bd', labelKey: 'pingBd', className: 'ping-bd', datasetIndex: 3 },
-  { field: 'ping_node_1', lossField: 'loss_node_1', labelKey: 'node1', className: 'ping-node-1', datasetIndex: 4 },
-  { field: 'ping_node_2', lossField: 'loss_node_2', labelKey: 'node2', className: 'ping-node-2', datasetIndex: 5 },
-  { field: 'ping_node_3', lossField: 'loss_node_3', labelKey: 'node3', className: 'ping-node-3', datasetIndex: 6 },
-  { field: 'ping_node_4', lossField: 'loss_node_4', labelKey: 'node4', className: 'ping-node-4', datasetIndex: 7 }
+  { field: 'ping_ct', lossField: 'loss_ct', className: 'ping-ct', datasetIndex: 0 },
+  { field: 'ping_cu', lossField: 'loss_cu', className: 'ping-cu', datasetIndex: 1 },
+  { field: 'ping_cm', lossField: 'loss_cm', className: 'ping-cm', datasetIndex: 2 },
+  { field: 'ping_bd', lossField: 'loss_bd', className: 'ping-bd', datasetIndex: 3 },
+  { field: 'ping_node_1', lossField: 'loss_node_1', className: 'ping-node-1', datasetIndex: 4 },
+  { field: 'ping_node_2', lossField: 'loss_node_2', className: 'ping-node-2', datasetIndex: 5 },
+  { field: 'ping_node_3', lossField: 'loss_node_3', className: 'ping-node-3', datasetIndex: 6 },
+  { field: 'ping_node_4', lossField: 'loss_node_4', className: 'ping-node-4', datasetIndex: 7 }
 ]
-const pingLabel = (key) => String(appConfig?.[key.startsWith('node_') ? `${key}_name` : `custom_${key}_name`] || trans.value[`ping${key.toUpperCase().charAt(0)}${key.slice(1)}`] || key.toUpperCase())
+const pingLabel = (key) => String(appConfig?.[key.startsWith('node_') ? `${key}_name` : `custom_${key}_name`] || (key === 'bd' ? 'BGP' : trans.value[`custom${key.toUpperCase().charAt(0)}${key.slice(1)}`]) || key.toUpperCase())
 
 const DISK_IO_FIELDS = ['read_bps', 'write_bps', 'read_iops', 'write_iops', 'await_ms', 'util']
 const EMPTY_DISK_IO = Object.freeze(Object.fromEntries(DISK_IO_FIELDS.map(field => [field, 0])))
@@ -1142,6 +1140,7 @@ const initCharts = () => {
           },
           ticks: {
             maxTicksLimit: CHART.MAX_TICKS,
+            autoSkipPadding: 16,
             color: chartTheme.axis,
             font: { size: 9, family: "'JetBrains Mono', monospace" },
             maxRotation: 0,
@@ -1574,10 +1573,16 @@ const getReplaySampleData = (sample) => {
 
 const buildLiveStatusData = (event) => {
   const receiveTs = Date.now()
+  // last_updated 必须使用上报方的时间戳，不能用浏览器接收时间，
+  // 否则离线重放缓存上报时会把「最后更新」显示成当前时间。
+  const reportTs = normalizeMetricTimestamp(
+    event?.data?.last_updated ?? event?.data?.timestamp ?? event?.ts,
+    receiveTs
+  )
   return {
     ...event.data,
-    sample_timestamp: event.ts,
-    last_updated: receiveTs,
+    sample_timestamp: reportTs,
+    last_updated: reportTs,
     timestamp: receiveTs
   }
 }

@@ -8,7 +8,7 @@
           <img class="mikus-loading-gif" :src="mikusAsset('loli.gif')" alt="Loading">
           <div class="mikus-loading-brand">
             <img class="mikus-loading-logo" :src="mikusAsset('miku.png')" alt="">
-            <span>{{ sysConfig.site_title || 'Komari' }}</span>
+            <span>{{ sysConfig.site_title || 'CF Server Monitor' }}</span>
           </div>
           <div class="mikus-loading-progress" aria-hidden="true">
             <div class="mikus-loading-progress-fill"></div>
@@ -122,18 +122,24 @@
       <div class="stat-item">
         <div class="stat-label">{{ trans.servers }}</div>
         <div class="stat-main-value stat-main-value-sm stat-sub-info">
-          <span class="stat-online-color">{{ trans.online }}:{{ stats.online }}</span> |
+          <span class="stat-online-color">{{ trans.online }}:{{ stats.online }}</span>
+          <span class="stat-sep">|</span>
           <span class="stat-offline-color">{{ trans.offline }}:{{ stats.offline }}</span>
         </div>
       </div>
       <div class="stat-item">
         <div class="stat-label">{{ trans.totalTraffic }}</div>
-        <div class="stat-main-value stat-main-value-sm">{{ formatBytes(stats.globalNetRx) }} ↓ | ↑ {{ formatBytes(stats.globalNetTx) }}</div>
+        <div class="stat-main-value stat-main-value-sm">
+          <span>↓ {{ formatBytes(stats.globalNetRx) }}</span>
+          <span class="stat-sep">|</span>
+          <span>↑ {{ formatBytes(stats.globalNetTx) }}</span>
+        </div>
       </div>
-      <div class="stat-item">
+      <div class="stat-item" :class="{ 'stat-item-full': !sysConfig.show_price }">
         <div class="stat-label">{{ trans.realtimeSpeed }}</div>
         <div class="stat-main-value stat-main-value-sm">
-          <span class="stat-net-down-color">↓ {{ formatBytes(stats.globalSpeedIn) }}/s</span> |
+          <span class="stat-net-down-color">↓ {{ formatBytes(stats.globalSpeedIn) }}/s</span>
+          <span class="stat-sep">|</span>
           <span class="stat-net-up-color">↑ {{ formatBytes(stats.globalSpeedOut) }}/s</span>
         </div>
       </div>
@@ -182,7 +188,7 @@
               <th>{{ trans.hostname }}</th>
               <th>{{ trans.region }}</th>
               <th>{{ trans.osArch }}</th>
-              <th>{{ trans.cpu }}</th>
+              <th>CPU</th>
               <th>{{ trans.ram }}</th>
               <th>{{ trans.disk }}</th>
               <th>{{ trans.use }}</th>
@@ -407,6 +413,10 @@ const sysConfig = ref({
   custom_cu_name: appConfig?.custom_cu_name || '联通',
   custom_cm_name: appConfig?.custom_cm_name || '移动',
   custom_bd_name: appConfig?.custom_bd_name || 'BGP',
+  node_1_name: appConfig?.node_1_name || 'Node 1',
+  node_2_name: appConfig?.node_2_name || 'Node 2',
+  node_3_name: appConfig?.node_3_name || 'Node 3',
+  node_4_name: appConfig?.node_4_name || 'Node 4',
   frontend_ws_timeout_minutes: normalizeLiveSocketTimeoutMinutes(appConfig?.frontend_ws_timeout_minutes),
   display_mode: 'bar',
   site_title: DEFAULT_SITE_TITLE,
@@ -1004,6 +1014,10 @@ const refreshData = async () => {
           custom_cu_name: data.sysConfig?.custom_cu_name || sysConfig.value.custom_cu_name,
           custom_cm_name: data.sysConfig?.custom_cm_name || sysConfig.value.custom_cm_name,
           custom_bd_name: data.sysConfig?.custom_bd_name || sysConfig.value.custom_bd_name,
+          node_1_name: data.sysConfig?.node_1_name || sysConfig.value.node_1_name,
+          node_2_name: data.sysConfig?.node_2_name || sysConfig.value.node_2_name,
+          node_3_name: data.sysConfig?.node_3_name || sysConfig.value.node_3_name,
+          node_4_name: data.sysConfig?.node_4_name || sysConfig.value.node_4_name,
           frontend_ws_timeout_minutes: sysConfig.value.frontend_ws_timeout_minutes,
           display_mode: normalizeDisplayMode(data.sysConfig?.display_mode),
           site_title: sysConfig.value.site_title || DEFAULT_SITE_TITLE,
@@ -1047,6 +1061,10 @@ const refreshData = async () => {
       custom_cu_name: data.sysConfig?.custom_cu_name || sysConfig.value.custom_cu_name,
       custom_cm_name: data.sysConfig?.custom_cm_name || sysConfig.value.custom_cm_name,
       custom_bd_name: data.sysConfig?.custom_bd_name || sysConfig.value.custom_bd_name,
+      node_1_name: data.sysConfig?.node_1_name || sysConfig.value.node_1_name,
+      node_2_name: data.sysConfig?.node_2_name || sysConfig.value.node_2_name,
+      node_3_name: data.sysConfig?.node_3_name || sysConfig.value.node_3_name,
+      node_4_name: data.sysConfig?.node_4_name || sysConfig.value.node_4_name,
       frontend_ws_timeout_minutes: sysConfig.value.frontend_ws_timeout_minutes,
       display_mode: normalizeDisplayMode(data.sysConfig?.display_mode),
       site_title: sysConfig.value.site_title || DEFAULT_SITE_TITLE,
@@ -1296,6 +1314,13 @@ const goToServer = (server) => {
   router.push(getServerLink(server))
 }
 
+const handleThemeOptionsChanged = (event) => {
+  sysConfig.value = {
+    ...sysConfig.value,
+    theme_options: normalizeThemeOptions(event.detail)
+  }
+}
+
 onMounted(async () => {
   financeCurrency.value = getStoredFinanceCurrency()
   loadFinanceRates()
@@ -1317,6 +1342,7 @@ onMounted(async () => {
     window.addEventListener('resize', scheduleFilterMeasurement)
   }
   document.addEventListener('click', closeFilterMoreOnOutsideClick)
+  window.addEventListener('theme-options-changed', handleThemeOptionsChanged)
   startLiveSocket()
   document.addEventListener('visibilitychange', handleVisibility)
 
@@ -1342,6 +1368,7 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', handleVisibility)
   document.removeEventListener('click', closeFilterMoreOnOutsideClick)
+  window.removeEventListener('theme-options-changed', handleThemeOptionsChanged)
   window.removeEventListener('resize', scheduleFilterMeasurement)
   if (filterMeasureTimer) clearTimeout(filterMeasureTimer)
   if (filterResizeObserver) filterResizeObserver.disconnect()
